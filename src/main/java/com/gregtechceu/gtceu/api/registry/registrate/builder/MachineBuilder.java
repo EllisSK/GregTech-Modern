@@ -45,6 +45,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.fml.ModLoader;
@@ -344,6 +345,14 @@ public class MachineBuilder<DEFINITION extends MachineDefinition, MACHINE extend
         return getThis();
     }
 
+    /**
+     * Takes a recipe type id ({@code gtceu} when no namespace is given). KubeJS definition functions use this: they
+     * run while machines register, before any recipe type is bound, and cannot build the holder themselves.
+     */
+    public SELF recipeType(String id) {
+        return recipeType(DeferredHolder.create(Registries.RECIPE_TYPE, GTCEu.id(id)));
+    }
+
     @SafeVarargs
     public final SELF recipeTypes(DeferredHolder<RecipeType<?>, GTRecipeType>... types) {
         Validate.noNullElements(types, "Cannot add null recipe type to machine.");
@@ -563,6 +572,14 @@ public class MachineBuilder<DEFINITION extends MachineDefinition, MACHINE extend
                                                         @Nullable T defaultValue) {
         properties.modelProperties().put(property, defaultValue);
         return getThis();
+    }
+
+    /**
+     * {@link #modelProperty(Property, Comparable)} for boolean properties. KubeJS cannot pass a script boolean to the
+     * generic default value, so scripts use this, as they did in GTCEu 7.x.
+     */
+    public SELF modelPropertyBool(BooleanProperty property, boolean defaultValue) {
+        return modelProperty(property, defaultValue);
     }
 
     @Tolerate
