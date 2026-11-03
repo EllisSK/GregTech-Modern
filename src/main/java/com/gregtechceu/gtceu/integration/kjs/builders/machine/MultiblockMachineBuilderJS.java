@@ -1,5 +1,6 @@
 package com.gregtechceu.gtceu.integration.kjs.builders.machine;
 
+import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.capability.recipe.RecipeCapability;
 import com.gregtechceu.gtceu.api.data.RotationState;
 import com.gregtechceu.gtceu.api.machine.*;
@@ -33,6 +34,7 @@ import com.tterrag.registrate.util.nullness.NonNullBiConsumer;
 import dev.latvian.mods.kubejs.client.LangKubeEvent;
 import dev.latvian.mods.kubejs.generator.KubeAssetGenerator;
 import dev.latvian.mods.kubejs.registry.BuilderBase;
+import dev.latvian.mods.rhino.Wrapper;
 import it.unimi.dsi.fastutil.objects.Reference2IntMap;
 import org.apache.commons.lang3.function.TriFunction;
 import org.jetbrains.annotations.Nullable;
@@ -125,16 +127,39 @@ public class MultiblockMachineBuilderJS extends BuilderBase<MultiblockMachineDef
         return this;
     }
 
-    public MultiblockMachineBuilderJS recipeTypes(GTRecipeType... recipeTypes) {
+    public MultiblockMachineBuilderJS recipeTypes(Object... recipeTypes) {
         for (var type : recipeTypes) {
-            recipeType(type);
+            if (Wrapper.unwrapped(type) instanceof Iterable<?> list) {
+                list.forEach(this::recipeType);
+            } else {
+                recipeType(type);
+            }
         }
         return this;
     }
 
-    public MultiblockMachineBuilderJS recipeType(GTRecipeType recipeTypes) {
-        internal.recipeType(DeferredHolder.create(Registries.RECIPE_TYPE, recipeTypes.id));
+    /**
+     * Takes a recipe type, or its id ({@code gtceu} when no namespace is given). Only the id is kept, so this works
+     * while machines are registered, before any recipe type (GTCEu's own included) has been bound.
+     */
+    public MultiblockMachineBuilderJS recipeType(Object recipeType) {
+        internal.recipeType(DeferredHolder.create(Registries.RECIPE_TYPE, recipeTypeId(recipeType)));
         return this;
+    }
+
+    private static ResourceLocation recipeTypeId(Object recipeType) {
+        Object o = Wrapper.unwrapped(recipeType);
+        if (o instanceof GTRecipeType type) {
+            return type.id;
+        }
+        if (o instanceof DeferredHolder<?, ?> holder) {
+            return holder.getId();
+        }
+        if (o instanceof ResourceLocation id) {
+            return id;
+        }
+        String id = String.valueOf(o);
+        return id.indexOf(':') < 0 ? GTCEu.id(id) : ResourceLocation.parse(id);
     }
 
     public MultiblockMachineBuilderJS tier(int tier) {
