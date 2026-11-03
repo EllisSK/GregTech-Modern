@@ -1,5 +1,6 @@
 package com.gregtechceu.gtceu.api.capability.recipe;
 
+import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.trait.notifiable.NotifiableRecipeHandlerTrait;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
@@ -38,12 +39,26 @@ import java.util.function.Function;
  */
 public abstract class RecipeCapability<T> {
 
+    /**
+     * Reads a capability by id. Ids without a namespace resolve to {@code gtceu}, so recipe files written for
+     * GTCEu 7.x, which keyed capabilities as {@code "item"}, {@code "eu"} and so on, still load.
+     */
+    public static final Codec<RecipeCapability<?>> KEY_CODEC = ResourceLocation.CODEC.flatXmap(
+            raw -> {
+                ResourceLocation id = raw.getNamespace().equals(ResourceLocation.DEFAULT_NAMESPACE) ?
+                        GTCEu.id(raw.getPath()) : raw;
+                RecipeCapability<?> cap = GTRegistries.RECIPE_CAPABILITIES.get(id);
+                return cap != null ? DataResult.success(cap) :
+                        DataResult.error(() -> "Unknown recipe capability: " + id);
+            },
+            cap -> DataResult.success(cap.id));
+
     // spotless:off
     public static final Codec<Map<RecipeCapability<?>, List<Content>>> CODEC = new DispatchedMapCodec<>(
-            GTRegistries.RECIPE_CAPABILITIES.byNameCodec(),
+            KEY_CODEC,
             RecipeCapability::contentCodec);
     public static final Codec<Map<RecipeCapability<?>, List<?>>> INGREDIENT_CODEC = new DispatchedMapCodec<>(
-            GTRegistries.RECIPE_CAPABILITIES.byNameCodec(),
+            KEY_CODEC,
             RecipeCapability::ingredientCodec);
     public static final Comparator<RecipeCapability<?>> COMPARATOR = Comparator.comparingInt(o -> o.sortIndex);
     // spotless:on

@@ -2,7 +2,6 @@ package com.gregtechceu.gtceu.integration.kjs.recipe.components;
 
 import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.capability.recipe.RecipeCapability;
-import com.gregtechceu.gtceu.api.registry.GTRegistries;
 
 import com.mojang.serialization.Codec;
 import dev.latvian.mods.kubejs.recipe.component.RecipeComponent;
@@ -17,7 +16,7 @@ public class RecipeCapabilityComponent implements RecipeComponent<RecipeCapabili
 
     @Override
     public Codec<RecipeCapability<?>> codec() {
-        return GTRegistries.RECIPE_CAPABILITIES.byNameCodec();
+        return RecipeCapability.KEY_CODEC;
     }
 
     @Override
