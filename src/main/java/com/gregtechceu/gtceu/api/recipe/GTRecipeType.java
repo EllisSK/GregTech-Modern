@@ -287,6 +287,17 @@ public class GTRecipeType implements RecipeType<GTRecipe> {
         default void buildRepresentativeRecipes() {}
     }
 
+    /**
+     * Adds a hook that runs whenever a recipe of this type is saved, after any hook the type already has. GTCEu 7.x
+     * offered this to KubeJS, which uses it to copy recipes into recipe types of its own; GregTech's own hooks (such
+     * as the chemical reactor copying into the large chemical reactor) keep running.
+     */
+    public GTRecipeType onRecipeBuild(BiConsumer<GTRecipeBuilder, RecipeOutput> hook) {
+        var existing = recipeBuilder.onSave;
+        recipeBuilder.onSave = existing == null ? hook : existing.andThen(hook);
+        return this;
+    }
+
     @Getter
     @Setter
     @Accessors(fluent = true)
