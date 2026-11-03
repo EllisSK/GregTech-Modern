@@ -62,6 +62,9 @@ public class KJSWrappingMultiblockBuilder extends BuilderBase<MultiblockMachineD
 
     @Override
     public @Nullable MultiblockMachineDefinition createObject() {
+        // The tiered builder registers one machine per tier with Registrate itself; without this call no
+        // tier was ever registered.
+        tieredBuilder.createObject();
         return null;
     }
 }

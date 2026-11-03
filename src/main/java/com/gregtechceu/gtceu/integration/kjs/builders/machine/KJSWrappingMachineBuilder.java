@@ -83,6 +83,9 @@ public class KJSWrappingMachineBuilder extends BuilderBase<MachineDefinition> im
 
     @Override
     public @Nullable MachineDefinition createObject() {
+        // The tiered builder registers one machine per tier with Registrate itself; without this call no
+        // tier was ever registered.
+        tieredBuilder.createObject();
         return null;
     }
 }
