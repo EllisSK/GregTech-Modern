@@ -66,9 +66,11 @@ public class ShapedEnergyTransferRecipe extends ShapedRecipe {
     public ItemStack getResultItem(HolderLookup.Provider provider) {
         long maxCharge = 0L;
         long charge = 0L;
-        ItemStack resultStack = super.getResultItem(provider);
+        // super returns the recipe's own result stack, and the ingredient's stacks are shared too (mods such as
+        // AllTheLeaks lock them). Building an electric item capability writes to its stack, so work on copies.
+        ItemStack resultStack = super.getResultItem(provider).copy();
         for (ItemStack chargeStack : chargeIngredient.getItems()) {
-            IElectricItem electricItem = GTCapabilityHelper.getElectricItem(chargeStack);
+            IElectricItem electricItem = GTCapabilityHelper.getElectricItem(chargeStack.copy());
             if (electricItem != null) {
                 maxCharge += electricItem.getMaxCharge();
                 charge += electricItem.getCharge();
