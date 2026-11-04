@@ -29,6 +29,9 @@ public class GTIngredientTypes {
     public static final DeferredHolder<IngredientType<?>, IngredientType<ExDataComponentIngredient>> DATA_COMPONENT_INGREDIENT = ITEM_INGREDIENT_TYPES
             .register("components", () -> new IngredientType<>(ExDataComponentIngredient.CODEC));
 
+    public static final DeferredHolder<IngredientType<?>, IngredientType<PartialCustomDataIngredient>> PARTIAL_CUSTOM_DATA_INGREDIENT = ITEM_INGREDIENT_TYPES
+            .register("partial_custom_data", () -> new IngredientType<>(PartialCustomDataIngredient.CODEC));
+
     public static final DeferredHolder<FluidIngredientType<?>, FluidIngredientType<ExDataComponentFluidIngredient>> DATA_COMPONENT_FLUID_INGREDIENT = FLUID_INGREDIENT_TYPES
             .register("components", () -> new FluidIngredientType<>(ExDataComponentFluidIngredient.CODEC));
 
