@@ -21,6 +21,11 @@ repositories {
         }
     }
 
+    exclusiveContent { // ModularUI 3.3.1-ff.1, patched for JEI 19.64 (libs/README.md)
+        forRepository { maven { url = rootProject.file("libs/maven") } }
+        filter { includeGroup("brachy.modularui") }
+    }
+
     maven {
         name = 'GTCEu Maven'
         url = 'https://maven.gtceu.com'

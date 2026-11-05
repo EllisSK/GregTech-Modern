@@ -1,0 +1,135 @@
+diff --git a/src/main/java/brachy/modularui/core/mixins/jei/RecipeGuiLogicMixin.java b/src/main/java/brachy/modularui/core/mixins/jei/RecipeGuiLogicMixin.java
+index 268e3cc..0fc537d 100644
+--- a/src/main/java/brachy/modularui/core/mixins/jei/RecipeGuiLogicMixin.java
++++ b/src/main/java/brachy/modularui/core/mixins/jei/RecipeGuiLogicMixin.java
+@@ -4,6 +4,7 @@ import brachy.modularui.integration.jei.recipe.ModularUIJeiCategory;
+ 
+ import com.llamalad7.mixinextras.sugar.Local;
+ import mezz.jei.api.recipe.category.IRecipeCategory;
++import mezz.jei.common.util.ImmutableSize2i;
+ import mezz.jei.gui.recipes.RecipeGuiLogic;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.injection.At;
+@@ -12,14 +13,15 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
+ @Mixin(value = RecipeGuiLogic.class, remap = false)
+ public class RecipeGuiLogicMixin {
+ 
+-    @ModifyVariable(method = "getVisibleRecipeLayoutsWithButtons", at = @At(value = "STORE"), name = "recipeHeight")
+-    private int modularui$useCategoryMaxHeightForLayout(int recipeHeight,
+-                                                        @Local(name = "recipeCategory") IRecipeCategory<?> recipeCategory) {
++    // JEI 19.64 sizes the grid from recipeSizeWithButtons (JEI 19.25 had an int recipeHeight)
++    @ModifyVariable(method = "getVisibleRecipeLayoutsWithButtons", at = @At(value = "STORE"), name = "recipeSizeWithButtons")
++    private ImmutableSize2i modularui$useCategoryMaxHeightForLayout(ImmutableSize2i recipeSize,
++                                                                    @Local(name = "recipeCategory") IRecipeCategory<?> recipeCategory) {
+         // if this is a MUI category, force the gui to use the category's max height as the recipe height
+         //  (instead of the height of the first recipe it finds, which may be shorter than others)
+         if (recipeCategory instanceof ModularUIJeiCategory<?> muiCategory) {
+-            return muiCategory.getMaxHeight();
++            return new ImmutableSize2i(recipeSize.width(), muiCategory.getMaxHeight());
+         }
+-        return recipeHeight;
++        return recipeSize;
+     }
+ }
+diff --git a/src/main/java/brachy/modularui/core/mixins/jei/RecipeSlotAccessor.java b/src/main/java/brachy/modularui/core/mixins/jei/RecipeSlotAccessor.java
+index 097e2b5..79bc880 100644
+--- a/src/main/java/brachy/modularui/core/mixins/jei/RecipeSlotAccessor.java
++++ b/src/main/java/brachy/modularui/core/mixins/jei/RecipeSlotAccessor.java
+@@ -1,14 +1,14 @@
+ package brachy.modularui.core.mixins.jei;
+ 
+ import mezz.jei.api.gui.ingredient.IRecipeSlotRichTooltipCallback;
+-import mezz.jei.api.ingredients.ITypedIngredient;
+ import mezz.jei.api.recipe.RecipeIngredientRole;
+ import mezz.jei.library.gui.ingredients.ICycler;
+ import mezz.jei.library.gui.ingredients.RecipeSlot;
+-import org.jetbrains.annotations.Nullable;
++import mezz.jei.library.gui.ingredients.RecipeSlotIngredients;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.Mutable;
+ import org.spongepowered.asm.mixin.gen.Accessor;
++import org.spongepowered.asm.mixin.gen.Invoker;
+ 
+ import java.util.List;
+ 
+@@ -26,11 +26,12 @@ public interface RecipeSlotAccessor {
+     @Accessor("tooltipCallbacks")
+     List<IRecipeSlotRichTooltipCallback> modularui$getTooltipCallbacks();
+ 
+-    @Accessor("allIngredients")
++    // JEI 19.64 keeps a slot's all and displayed ingredients together in one RecipeSlotIngredients
++    @Accessor("ingredients")
+     @Mutable
+-    void modularui$setAllIngredients(List<@Nullable ITypedIngredient<?>> allIngredients);
++    void modularui$setIngredients(RecipeSlotIngredients ingredients);
+ 
+-    @Accessor("displayIngredients")
+-    @Mutable
+-    void modularui$setDisplayIngredients(List<@Nullable ITypedIngredient<?>> displayIngredients);
++    // clears the slot's caches of its ingredients (visible candidates, tooltip, tag)
++    @Invoker("onDisplayOverridesChanged")
++    void modularui$onIngredientsChanged();
+ }
+diff --git a/src/main/java/brachy/modularui/integration/jei/JeiRecipeViewerSlot.java b/src/main/java/brachy/modularui/integration/jei/JeiRecipeViewerSlot.java
+index ea46d70..cb7b88d 100644
+--- a/src/main/java/brachy/modularui/integration/jei/JeiRecipeViewerSlot.java
++++ b/src/main/java/brachy/modularui/integration/jei/JeiRecipeViewerSlot.java
+@@ -30,6 +30,7 @@ import mezz.jei.api.recipe.category.IRecipeCategory;
+ import mezz.jei.api.runtime.IIngredientManager;
+ import mezz.jei.common.gui.JeiTooltip;
+ import mezz.jei.library.gui.ingredients.ICycler;
++import mezz.jei.library.gui.ingredients.RecipeSlotIngredients;
+ import mezz.jei.library.gui.recipes.OutputSlotTooltipCallback;
+ import mezz.jei.library.ingredients.DisplayIngredientAcceptor;
+ import org.jetbrains.annotations.ApiStatus;
+@@ -166,8 +167,9 @@ public class JeiRecipeViewerSlot<I, T> extends RecipeViewerSlotWidget<I, JeiReci
+             }
+         }
+ 
+-        recipeSlot.modularui$setAllIngredients(allIngredients);
+-        recipeSlot.modularui$setDisplayIngredients(focusedIngredients);
++        recipeSlot.modularui$setIngredients(new RecipeSlotIngredients(allIngredients, focusedIngredients,
++                recipeSlot::modularui$onIngredientsChanged));
++        recipeSlot.modularui$onIngredientsChanged();
+     }
+ 
+     @Override
+@@ -212,9 +214,10 @@ public class JeiRecipeViewerSlot<I, T> extends RecipeViewerSlotWidget<I, JeiReci
+     // copied from RecipeLayoutBuilder#addOutputSlotTooltipCallback
+     private void addOutputSlotTooltipCallback(RecipeSlotAccessor slot) {
+         ResourceLocation recipeName = recipeCategory.getRegistryName(recipe);
+-        if (recipeName != null) {
++        List<ResourceLocation> sourceRecipeIds = recipeCategory.getSourceRecipeIds(recipe);
++        if (recipeName != null || !sourceRecipeIds.isEmpty()) {
+             RecipeType<T> recipeType = recipeCategory.getRecipeType();
+-            OutputSlotTooltipCallback callback = new OutputSlotTooltipCallback(recipeName, recipeType);
++            OutputSlotTooltipCallback callback = new OutputSlotTooltipCallback(recipeName, sourceRecipeIds, recipeType);
+             slot.modularui$getTooltipCallbacks().add(callback);
+         }
+     }
+diff --git a/src/main/java/brachy/modularui/integration/jei/handler/JeiScreenHandler.java b/src/main/java/brachy/modularui/integration/jei/handler/JeiScreenHandler.java
+index 855b421..b45d92a 100755
+--- a/src/main/java/brachy/modularui/integration/jei/handler/JeiScreenHandler.java
++++ b/src/main/java/brachy/modularui/integration/jei/handler/JeiScreenHandler.java
+@@ -18,6 +18,7 @@ import net.minecraft.client.renderer.Rect2i;
+ import net.minecraft.world.inventory.AbstractContainerMenu;
+ 
+ import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
++import mezz.jei.api.gui.builder.IClickableIngredientFactory;
+ import mezz.jei.api.gui.handlers.IGhostIngredientHandler;
+ import mezz.jei.api.gui.handlers.IGuiContainerHandler;
+ import mezz.jei.api.gui.handlers.IGuiProperties;
+@@ -173,6 +174,13 @@ public class JeiScreenHandler<T extends Screen & IMuiScreen> extends RecipeViewe
+             return Optional.empty();
+         }
+ 
++        // JEI 19.64 asks with a factory, and IGuiContainerHandler and IScreenHandler both default it
++        @Override
++        public @NotNull Optional<? extends IClickableIngredient<?>> getClickableIngredientUnderMouse(IClickableIngredientFactory factory, T screen,
++                                                                                               double mouseX, double mouseY) {
++            return getClickableIngredientUnderMouse(screen, mouseX, mouseY);
++        }
++
+         private <I> I mapFirstIngredient(IngredientProvider<I> provider) {
+             return provider.renderMappingFunction().apply(provider.getIngredients().getStacks().getFirst());
+         }
