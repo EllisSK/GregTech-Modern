@@ -16,6 +16,7 @@ import com.gregtechceu.gtceu.api.recipe.modifier.RecipeModifier;
 import com.gregtechceu.gtceu.api.registry.registrate.GTRegistrate;
 import com.gregtechceu.gtceu.api.registry.registrate.builder.MachineBuilder;
 import com.gregtechceu.gtceu.api.registry.registrate.builder.MultiblockMachineBuilder;
+import com.gregtechceu.gtceu.api.registry.registrate.entry.MachineEntry;
 import com.gregtechceu.gtceu.api.registry.registrate.provider.GTBlockstateProvider;
 
 import net.minecraft.core.Direction;
@@ -367,9 +368,16 @@ public class MultiblockMachineBuilderJS extends BuilderBase<MultiblockMachineDef
         return this;
     }
 
+    /**
+     * The internal builder registers itself with Registrate, so {@link #createObject()} returns null and
+     * {@code object} is never set. The block model is generated from this entry's definition instead; without it
+     * no KubeJS multiblock got a block model and its item drew the missing texture.
+     */
+    private @Nullable MachineEntry<MultiblockMachineDefinition> entry;
+
     @Override
     public void generateMachineModels() {
-        generateMachineModel(internal, object);
+        generateMachineModel(internal, entry == null ? null : entry.get());
     }
 
     @Override
@@ -386,7 +394,7 @@ public class MultiblockMachineBuilderJS extends BuilderBase<MultiblockMachineDef
     }
 
     public @Nullable MultiblockMachineDefinition createObject() {
-        internal.register();
+        entry = internal.register();
         return null;
     }
 
