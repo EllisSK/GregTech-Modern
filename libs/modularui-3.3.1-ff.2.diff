@@ -70,6 +70,30 @@ index 097e2b5..79bc880 100644
 +    @Invoker("onDisplayOverridesChanged")
 +    void modularui$onIngredientsChanged();
  }
+diff --git a/src/main/java/brachy/modularui/drawable/schema/SchemaLevel.java b/src/main/java/brachy/modularui/drawable/schema/SchemaLevel.java
+index 439f26e..981be7e 100755
+--- a/src/main/java/brachy/modularui/drawable/schema/SchemaLevel.java
++++ b/src/main/java/brachy/modularui/drawable/schema/SchemaLevel.java
+@@ -2,7 +2,6 @@ package brachy.modularui.drawable.schema;
+ 
+ import brachy.modularui.ModularUI;
+ import brachy.modularui.utils.BlockPosUtil;
+-import brachy.modularui.utils.RegistryAccessContainer;
+ import brachy.modularui.utils.sides.SidedAccessHelper;
+ 
+ import net.minecraft.MethodsReturnNonnullByDefault;
+@@ -90,10 +89,8 @@ public class SchemaLevel extends Level implements ISchema {
+     private final Holder<Biome> biome;
+     private final DataLayer defaultDataLayer;
+ 
+-    public static final SchemaLevel INSTANCE = new SchemaLevel();
+-
+     public SchemaLevel() {
+-        this(RegistryAccessContainer.current());
++        this(SidedAccessHelper.getRegistries());
+     }
+ 
+     public SchemaLevel(RegistryAccess registryAccess) {
 diff --git a/src/main/java/brachy/modularui/integration/jei/JeiRecipeViewerSlot.java b/src/main/java/brachy/modularui/integration/jei/JeiRecipeViewerSlot.java
 index ea46d70..cb7b88d 100644
 --- a/src/main/java/brachy/modularui/integration/jei/JeiRecipeViewerSlot.java
@@ -133,3 +157,61 @@ index 855b421..b45d92a 100755
          private <I> I mapFirstIngredient(IngredientProvider<I> provider) {
              return provider.renderMappingFunction().apply(provider.getIngredients().getStacks().getFirst());
          }
+diff --git a/src/main/java/brachy/modularui/utils/sides/ClientCallWrapper.java b/src/main/java/brachy/modularui/utils/sides/ClientCallWrapper.java
+index ff61ae5..a1a54b1 100644
+--- a/src/main/java/brachy/modularui/utils/sides/ClientCallWrapper.java
++++ b/src/main/java/brachy/modularui/utils/sides/ClientCallWrapper.java
+@@ -1,10 +1,13 @@
+ package brachy.modularui.utils.sides;
+ 
+ import net.minecraft.client.Minecraft;
++import net.minecraft.client.multiplayer.ClientPacketListener;
+ import net.minecraft.core.RegistryAccess;
+ import net.minecraft.world.item.alchemy.PotionBrewing;
+ import net.minecraft.world.item.crafting.RecipeManager;
+ 
++import org.jetbrains.annotations.Nullable;
++
+ /**
+  * Internal helper class acting as a safeguard for accessing client-only methods
+  */
+@@ -12,8 +15,9 @@ import net.minecraft.world.item.crafting.RecipeManager;
+ 
+     private ClientCallWrapper() {}
+ 
+-    static RegistryAccess.Frozen getClientRegistries() {
+-        return Minecraft.getInstance().getConnection().registryAccess();
++    static @Nullable RegistryAccess.Frozen getClientRegistries() {
++        ClientPacketListener connection = Minecraft.getInstance().getConnection();
++        return connection != null ? connection.registryAccess() : null;
+     }
+ 
+     static RecipeManager getClientRecipeManager() {
+diff --git a/src/main/java/brachy/modularui/utils/sides/SidedAccessHelper.java b/src/main/java/brachy/modularui/utils/sides/SidedAccessHelper.java
+index 357fbc3..ec03048 100644
+--- a/src/main/java/brachy/modularui/utils/sides/SidedAccessHelper.java
++++ b/src/main/java/brachy/modularui/utils/sides/SidedAccessHelper.java
+@@ -1,6 +1,7 @@
+ package brachy.modularui.utils.sides;
+ 
+ import brachy.modularui.ModularUI;
++import brachy.modularui.utils.RegistryAccessContainer;
+ 
+ import net.minecraft.core.RegistryAccess;
+ import net.minecraft.network.RegistryFriendlyByteBuf;
+@@ -19,10 +20,13 @@ public final class SidedAccessHelper {
+ 
+     public static RegistryAccess getRegistries() {
+         if (ModularUI.isClientThread()) {
+-            return ClientCallWrapper.getClientRegistries();
++            RegistryAccess registries = ClientCallWrapper.getClientRegistries();
++            if (registries != null) return registries;
+         } else {
+-            return getServer().registryAccess();
++            MinecraftServer server = getServer();
++            if (server != null) return server.registryAccess();
+         }
++        return RegistryAccessContainer.current();
+     }
+ 
+     public static RecipeManager getRecipeManager() {
