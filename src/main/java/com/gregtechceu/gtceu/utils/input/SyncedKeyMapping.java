@@ -239,6 +239,15 @@ public final class SyncedKeyMapping {
     @OnlyIn(Dist.CLIENT)
     public static void onClientTick(ClientTickEvent.Pre event) {
         updatingKeyDown.clear();
+        // Clients keep ticking after a disconnect or server crash, with no connection to send key states over:
+        // PacketDistributor.sendToServer would throw a NullPointerException and crash the client. isKeyDown is the
+        // state last sent to the server, so reset it; the next server starts with every key up as well.
+        if (Minecraft.getInstance().getConnection() == null) {
+            for (SyncedKeyMapping keyMapping : KEYMAPPINGS.values()) {
+                keyMapping.isKeyDown = false;
+            }
+            return;
+        }
         for (var entry : KEYMAPPINGS.int2ObjectEntrySet()) {
             SyncedKeyMapping keyMapping = entry.getValue();
             boolean previousKeyDown = keyMapping.isKeyDown;
