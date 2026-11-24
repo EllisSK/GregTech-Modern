@@ -14,7 +14,6 @@ import com.gregtechceu.gtceu.common.data.GTRecipeTypes;
 import net.minecraft.Util;
 import net.minecraft.network.chat.Component;
 
-import brachy.modularui.integration.jei.JeiIngredientHandler;
 import brachy.modularui.integration.jei.recipe.ModularUIJeiCategory;
 import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.constants.VanillaTypes;
@@ -81,7 +80,7 @@ public class GTRecipeJEICategory extends ModularUIJeiCategory<GTRecipe> {
             var mapped = ItemRecipeCapability
                     .mapIngredientToEntryList(ItemRecipeCapability.CAP.of(itemContent.content()));
 
-            JeiIngredientHandler.toJeiIngredient(mapped).forEach(
+            mapped.getStacks().stream().filter(stack -> !stack.isEmpty()).forEach(
                     stack -> builder.addInvisibleIngredients(RecipeIngredientRole.INPUT)
                             .addIngredient(VanillaTypes.ITEM_STACK, stack));
         }
@@ -90,7 +89,7 @@ public class GTRecipeJEICategory extends ModularUIJeiCategory<GTRecipe> {
             var mapped = FluidRecipeCapability
                     .mapIngredientToEntryList(FluidRecipeCapability.CAP.of(fluidContent.content()));
 
-            JeiIngredientHandler.toJeiIngredient(mapped).forEach(
+            mapped.getStacks().stream().filter(stack -> !stack.isEmpty()).forEach(
                     stack -> builder.addInvisibleIngredients(RecipeIngredientRole.INPUT)
                             .addIngredient(NeoForgeTypes.FLUID_STACK, stack));
         }
@@ -99,7 +98,7 @@ public class GTRecipeJEICategory extends ModularUIJeiCategory<GTRecipe> {
             var mapped = ItemRecipeCapability
                     .mapIngredientToEntryList(ItemRecipeCapability.CAP.of(itemContent.content()));
 
-            JeiIngredientHandler.toJeiIngredient(mapped)
+            mapped.getStacks().stream().filter(stack -> !stack.isEmpty())
                     .forEach(stack -> builder.addInvisibleIngredients(RecipeIngredientRole.OUTPUT)
                             .addIngredient(VanillaTypes.ITEM_STACK, stack));
         }
@@ -108,7 +107,7 @@ public class GTRecipeJEICategory extends ModularUIJeiCategory<GTRecipe> {
             var mapped = FluidRecipeCapability
                     .mapIngredientToEntryList(FluidRecipeCapability.CAP.of(fluidContent.content()));
 
-            JeiIngredientHandler.toJeiIngredient(mapped).forEach(
+            mapped.getStacks().stream().filter(stack -> !stack.isEmpty()).forEach(
                     stack -> builder.addInvisibleIngredients(RecipeIngredientRole.OUTPUT)
                             .addIngredient(NeoForgeTypes.FLUID_STACK, stack));
         }

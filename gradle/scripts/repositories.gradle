@@ -21,7 +21,7 @@ repositories {
         }
     }
 
-    exclusiveContent { // ModularUI 3.3.1-ff.2, patched for JEI 19.64 and multiplayer schemas (libs/README.md)
+    exclusiveContent { // ModularUI 3.3.1-ff.3: upstream 1.21.1 fitted to JEI 19.64 (libs/README.md)
         forRepository { maven { url = rootProject.file("libs/maven") } }
         filter { includeGroup("brachy.modularui") }
     }

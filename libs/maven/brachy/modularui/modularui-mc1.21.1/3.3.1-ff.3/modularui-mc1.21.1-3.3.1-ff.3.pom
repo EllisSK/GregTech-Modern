@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>brachy.modularui</groupId>
   <artifactId>modularui-mc1.21.1</artifactId>
-  <version>3.3.1-ff.2</version>
+  <version>3.3.1-ff.3</version>
   <dependencies>
     <dependency>
       <groupId>com.ezylang</groupId>

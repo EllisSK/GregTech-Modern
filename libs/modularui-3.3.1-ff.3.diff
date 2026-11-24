@@ -1,0 +1,145 @@
+From 927aa28609399f4601bdd686b7535c4ed58a8c85 Mon Sep 17 00:00:00 2001
+From: EllisSK <ellissinclairkent@gmail.com>
+Date: Tue, 24 Nov 2026 14:50:21 +0000
+Subject: [PATCH 1/2] Fit the JEI integration to JEI 19.64 again (Fossil Fuel)
+
+The Fossil Fuel pack ships JEI 19.64.0.455 and NeoForge 21.1.252, so build
+against those instead of JEI 19.70.0.469 and NeoForge 21.1.265 (#147).
+
+The JEI integration from #147 compiles against JEI 19.64 except for one
+call: SearchInputLayer#focus() only exists from JEI 19.70. Focus the
+overlay's search field directly instead, through the IngredientListOverlay
+accessor #147 removed (now a client mixin). Everything else #147 uses is
+already in JEI 19.64: display overrides on IRecipeSlotDrawable,
+IRecipeSlotDrawable#draw(GuiGraphics, boolean), IClickableIngredientFactory,
+SearchInputLayer#clearFocus/hasKeyboardFocus, and the mixin targets
+(RecipeGuiLogic's Optional#map in getVisibleRecipeLayoutsWithButtons,
+RecipeLayoutBuilder#buildRecipeLayout, createShapelessIcon and
+getRecipeTransferButtonPosition, RecipeLayout#drawOverlays).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01ANhmTTN2DnJwHfcTLZjNKe
+---
+ gradle/forge.versions.toml                         |  2 +-
+ gradle/libs.versions.toml                          |  2 +-
+ .../mixins/jei/IngredientListOverlayAccessor.java  | 14 ++++++++++++++
+ .../integration/jei/handler/JeiScreenHandler.java  |  4 +++-
+ src/main/resources/modularui.mixins.json           |  1 +
+ 5 files changed, 20 insertions(+), 3 deletions(-)
+ create mode 100644 src/main/java/brachy/modularui/core/mixins/jei/IngredientListOverlayAccessor.java
+
+diff --git a/gradle/forge.versions.toml b/gradle/forge.versions.toml
+index daeaae1..f56cf60 100755
+--- a/gradle/forge.versions.toml
++++ b/gradle/forge.versions.toml
+@@ -2,7 +2,7 @@
+ # Recipe viewers
+ emi = "1.1.24+1.21.1"
+ 
+-jei = "19.70.0.469"
++jei = "19.64.0.455"
+ 
+ rei = "16.0.799"
+ architectury = "13.0.8"
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index 6e9d33b..9e9a451 100755
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -1,7 +1,7 @@
+ [versions]
+ java = "21" # for
+ minecraft = "1.21.1"
+-neoForge = "21.1.265"
++neoForge = "21.1.252"
+ loader = "4"
+ parchment = "2024.11.17" # https://parchmentmc.org/docs/getting-started
+ shadow = "8.3.5"
+diff --git a/src/main/java/brachy/modularui/core/mixins/jei/IngredientListOverlayAccessor.java b/src/main/java/brachy/modularui/core/mixins/jei/IngredientListOverlayAccessor.java
+new file mode 100644
+index 0000000..f2561ce
+--- /dev/null
++++ b/src/main/java/brachy/modularui/core/mixins/jei/IngredientListOverlayAccessor.java
+@@ -0,0 +1,14 @@
++package brachy.modularui.core.mixins.jei;
++
++import mezz.jei.gui.input.GuiTextFieldFilter;
++import mezz.jei.gui.overlay.IngredientListOverlay;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.gen.Accessor;
++
++// JEI 19.64 has no SearchInputLayer#focus (added in JEI 19.70), so JeiScreenHandler focuses the search field itself
++@Mixin(value = IngredientListOverlay.class, remap = false)
++public interface IngredientListOverlayAccessor {
++
++    @Accessor("searchField")
++    GuiTextFieldFilter getSearchField();
++}
+diff --git a/src/main/java/brachy/modularui/integration/jei/handler/JeiScreenHandler.java b/src/main/java/brachy/modularui/integration/jei/handler/JeiScreenHandler.java
+index 5eed946..fa749f5 100755
+--- a/src/main/java/brachy/modularui/integration/jei/handler/JeiScreenHandler.java
++++ b/src/main/java/brachy/modularui/integration/jei/handler/JeiScreenHandler.java
+@@ -2,6 +2,7 @@ package brachy.modularui.integration.jei.handler;
+ 
+ import brachy.modularui.api.IMuiScreen;
+ import brachy.modularui.api.widget.IWidget;
++import brachy.modularui.core.mixins.jei.IngredientListOverlayAccessor;
+ import brachy.modularui.integration.jei.GhostIngredientTarget;
+ import brachy.modularui.integration.jei.JeiRecipeViewerSlot;
+ import brachy.modularui.integration.jei.ModularUIJeiPlugin;
+@@ -138,7 +139,8 @@ public class JeiScreenHandler<T extends Screen & IMuiScreen> extends RecipeViewe
+         // only set the search field state if it's JEI's actual search field and not JEMI
+         if (ModularUIJeiPlugin.getRuntime().getIngredientListOverlay() instanceof IngredientListOverlay realOverlay) {
+             if (focused) {
+-                realOverlay.getSearchInputLayer().focus();
++                // JEI 19.64's SearchInputLayer has no focus() (JEI 19.70 added it); focus its text field directly
++                ((IngredientListOverlayAccessor) realOverlay).getSearchField().setFocused(true);
+             } else {
+                 realOverlay.getSearchInputLayer().clearFocus();
+             }
+diff --git a/src/main/resources/modularui.mixins.json b/src/main/resources/modularui.mixins.json
+index e7efc54..586b7e2 100755
+--- a/src/main/resources/modularui.mixins.json
++++ b/src/main/resources/modularui.mixins.json
+@@ -14,6 +14,7 @@
+     "client.StringSplitterAccessor",
+     "emi.EmiRenderHelperMixin",
+     "emi.RecipeScreenMixin",
++    "jei.IngredientListOverlayAccessor",
+     "jei.RecipeLayoutBuilderMixin",
+     "jei.RecipeLayoutMixin",
+     "jei.RecipeGuiLogicMixin",
+-- 
+2.51.2.windows.1
+
+
+From 850534e37473535e863ca7b96ea0a05f861e5034 Mon Sep 17 00:00:00 2001
+From: EllisSK <ellissinclairkent@gmail.com>
+Date: Tue, 24 Nov 2026 14:50:21 +0000
+Subject: [PATCH 2/2] Version 3.3.1-ff.3, built against JEI 19.64.0.455
+
+3.3.1-ff.3 is upstream 1.21.1 at 035c9c8 (2026-11-24) with the JEI 19.64
+fit. It supersedes 3.3.1-ff.2 (d68ef357 + JEI 19.64 fit + #153), whose two
+changes upstream now covers or replaces.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01ANhmTTN2DnJwHfcTLZjNKe
+---
+ gradle.properties | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/gradle.properties b/gradle.properties
+index 98c3165..e3268f2 100755
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -6,7 +6,7 @@ org.gradle.caching=true
+ # Mod Info
+ mod_id=modularui
+ mod_name=ModularUI
+-mod_version = 3.3.1
++mod_version = 3.3.1-ff.3
+ mod_description=ModularUI ported from 1.12.2
+ mod_license=LGPL-3.0 license
+ mod_url=https://github.com/brachy84/ModularUI-Modern/
+-- 
+2.51.2.windows.1
+
